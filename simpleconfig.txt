@@ -1,0 +1,29 @@
+ConfigFileName = "WorkshopClick.txt"
+
+Key = "OpenInDefaultBrowser"
+Type = "bool"
+DefaultValue = false
+Label = "Open in default Browser"
+Tooltip = "Set to True to use your system browser. Set to False for Steam Overlay."
+ControlType = "Toggle" # "Toggle", "Slider", "TextField", "Dropdown".
+MinValue = 0
+MaxValue = 0
+Step = 0
+Options = []
+AvailableIn = ["MainMenu", "Game"]
+RequiresRestart = false
+RequiresReload = false
+
+Key = "MaxBuildingHeight"
+Type = "int"
+DefaultValue" = 5
+Label = "Max Building Height",
+Tooltip = "An integer variable mapped to a Slider control. Requires reloading the save."
+ControlType = "Slider"
+MinValue = 1
+MaxValue = 20
+Step = 1
+Options = []
+AvailableIn = ["MainMenu","Game"] # "MainMenu", "Game", "MapEditor"
+RequiresRestart = false,
+RequiresReload = true

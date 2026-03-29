@@ -1,0 +1,44 @@
+# SimpleConfig.txt Specification Guide
+
+This file acts as the Single Source of Truth for both the backend data management and the frontend UI generation.
+
+## ROOT LEVEL PROPERTIES
+* ConfigFileName (String) : The name of the .txt file created in the Timberborn PlayerData folder (e.g., "MyModSettings.txt").
+
+---
+
+## SETTING OBJECT PROPERTIES
+
+
+### 1. Backend Data Properties (Required)
+These tell the C# backend how to parse the text file and what fallback values to use.
+* Key (String)          : The exact identifier written to the .txt file (e.g., "EnableHardMode").
+* Type (String)         : The underlying C# variable type. Must be exactly one of: "bool", "int", "float", "string", or "enum".
+* DefaultValue (Any)    : The fallback value. Formatting must match the "Type" (e.g., true, 1.5, "Hard").
+
+### 2. Auto-Commenting Properties (Highly Recommended)
+These are injected into the .txt file as comments and used as text labels in the UI.
+* Label (String)        : The short, human-readable name of the setting (e.g., "Crop Growth Speed").
+* Tooltip (String)      : A detailed explanation of what the setting does. Combined with Label for .txt comments.
+
+### 3. Frontend UI Properties (Required)
+These tell the dynamic UI builder which visual elements to generate.
+* ControlType (String)  : The specific UI toolkit element to draw. Must be exactly one of: "Toggle", "Slider", "TextField", or "Dropdown".
+
+### 4. Conditional UI Properties
+These are required only if you are using specific ControlTypes.
+
+If ControlType is "Slider" (Pairs with Type "int" or "float"):
+* MinValue (Number)     : The lowest allowed value on the slider.
+* MaxValue (Number)     : The highest allowed value on the slider.
+* Step (Number)         : The increment the slider moves by (e.g., 0.1 for floats, 1 for ints).
+
+If ControlType is "Dropdown" (Pairs with Type "enum" or "string"):
+* Options (Array)       : A list of strings representing the valid choices (e.g., ["Easy", "Normal", "Hard"]).
+* Note: If your Type is "enum", these strings must exactly match your C# enum names.
+
+### 5. Lifecycle & Scene Properties (Optional)
+These handle when a setting can be safely edited and provide player warnings.
+* AvailableIn (Array)   : Lists scenes where the setting is editable. Valid values: "MainMenu", "Game", "MapEditor". Defaults to ["MainMenu"] if omitted.
+* RequiresRestart (Bool): If true, UI displays a warning that a game restart is required.
+* RequiresReload (Bool) : If true, UI displays a warning that the player must reload their save.

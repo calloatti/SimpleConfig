@@ -1,0 +1,1 @@
+simple config for Timberborn mods

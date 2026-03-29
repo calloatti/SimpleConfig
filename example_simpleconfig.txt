@@ -1,0 +1,51 @@
+"ConfigFileName": "MyModSettings.txt"
+
+"Key": "EnableDevMode"
+"Type": "bool"
+"DefaultValue": false
+"Label": "Enable Developer Mode",
+"Tooltip": "A boolean variable mapped to a Toggle control. Requires restarting the game."
+"ControlType": "Toggle"
+"AvailableIn": ["MainMenu"]
+"RequiresRestart": true
+"RequiresReload": false
+
+"Key": "MaxBuildingHeight"
+"Type": "int"
+"DefaultValue": 5
+"Label": "Max Building Height"
+"Tooltip": "An integer variable mapped to a Slider control. Requires reloading the save."
+"ControlType": "Slider"
+"MinValue": 1
+"MaxValue": 20
+"Step": 1
+"AvailableIn": ["MainMenu", "Game"]
+"RequiresRestart": false
+"RequiresReload": true
+
+"Key": "WaterFlowMultiplier"
+"Type": "float"
+"DefaultValue": 1.0
+"Label": "Water Flow Multiplier"
+"Tooltip": "A float variable mapped to a Slider control. Can be changed live anywhere."
+"ControlType": "Slider"
+"MinValue": 0.1
+"MaxValue": 3.0
+"Step": 0.1
+"AvailableIn": ["MainMenu", "Game", "MapEditor"]
+
+"Key": "CustomFactionName"
+"Type": "string"
+"DefaultValue": "Timberteers"
+"Label": "Custom Faction Name"
+"Tooltip": "A string variable. The scene array is omitted here, so the C# class will default to MainMenu only."
+"ControlType": "TextField"
+
+"Key": "StartingSeason"
+"Type": "enum"
+"DefaultValue": "Temperate"
+"Label": "Starting Season"
+"Tooltip": "An enum variable mapped to a Dropdown control. Editable in menu and map editor."
+"ControlType": "Dropdown"
+"Options": ["Temperate", "Drought", "Badwater"]
+"AvailableIn": ["MainMenu","MapEditor"]
