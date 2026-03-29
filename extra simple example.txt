@@ -1,0 +1,23 @@
+simpleconfig only contains the name of the config file:
+
+ConfigFileName = "mymod.txt"
+
+-------------
+
+if (ModStarter.Config.HasKey(blueprint.Name))
+{
+  moddedCap = ModStarter.Config.GetInt(blueprint.Name);
+  if (moddedCap <= 0) moddedCap = defaultCap;
+}
+else
+{
+  ModStarter.Config.Set(blueprint.Name, defaultCap);
+  ModStarter.Config.SetComment(blueprint.Name, $"Default value: {defaultCap}");
+  fileModified = true;
+}
+
+if (fileModified)
+{
+  Debug.Log("[StorageTweaks] Saving dynamic keys via SimpleConfig...");
+  ModStarter.Config.Save();
+}
