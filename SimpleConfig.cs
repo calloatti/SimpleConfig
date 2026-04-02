@@ -42,6 +42,11 @@ namespace Calloatti.Config
     private readonly Dictionary<string, string> _settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _comments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+    // FileSystemWatcher Additions
+    private FileSystemWatcher _watcher;
+    private DateTime _lastFileEventTime = DateTime.MinValue;
+    private readonly object _lockObj = new object();
+
     public SimpleConfig(string modPath)
     {
       // modPath comes from modEnvironment.ModPath in your Starter class
@@ -58,6 +63,35 @@ namespace Calloatti.Config
 
       LoadTxt();
       SyncWithSchema(schema);
+      InitializeWatcher();
+    }
+
+    private void InitializeWatcher()
+    {
+      string dir = Path.GetDirectoryName(_txtFilePath);
+      string file = Path.GetFileName(_txtFilePath);
+
+      if (!Directory.Exists(dir)) return;
+
+      _watcher = new FileSystemWatcher(dir, file)
+      {
+        NotifyFilter = NotifyFilters.LastWrite,
+        EnableRaisingEvents = true
+      };
+
+      _watcher.Changed += OnConfigFileChanged;
+    }
+
+    private void OnConfigFileChanged(object sender, FileSystemEventArgs e)
+    {
+      // Debounce: prevent multiple rapid fires from firing multiple reloads
+      if ((DateTime.UtcNow - _lastFileEventTime).TotalMilliseconds < 500) return;
+      _lastFileEventTime = DateTime.UtcNow;
+
+      // Brief sleep to allow the writing process to release the file lock
+      System.Threading.Thread.Sleep(50);
+      
+      LoadTxt();
     }
 
     // A robust helper to strip surrounding quotes, spaces, and trailing commas from schema strings
@@ -212,7 +246,12 @@ namespace Calloatti.Config
             // SetComment automatically prepends "# " to comments. 
             // We format our target string exactly like that so we can accurately check for differences.
             string targetComment = "# " + comment;
-            _comments.TryGetValue(entry.Key, out string existingComment);
+            
+            string existingComment;
+            lock (_lockObj)
+            {
+                _comments.TryGetValue(entry.Key, out existingComment);
+            }
 
             if (existingComment != targetComment)
             {
@@ -222,9 +261,18 @@ namespace Calloatti.Config
           }
 
           // 4. Add the setting value itself if it is completely missing
-          if (!_settings.ContainsKey(entry.Key))
+          bool hasKey;
+          lock (_lockObj)
           {
-            _settings[entry.Key] = strValue;
+              hasKey = _settings.ContainsKey(entry.Key);
+          }
+
+          if (!hasKey)
+          {
+            lock (_lockObj)
+            {
+                _settings[entry.Key] = strValue;
+            }
             changesMade = true;
           }
         }
@@ -238,39 +286,55 @@ namespace Calloatti.Config
 
     public void LoadTxt()
     {
-      _settings.Clear();
-      _comments.Clear();
       if (!File.Exists(_txtFilePath)) return;
 
-      foreach (string line in File.ReadAllLines(_txtFilePath))
+      string[] lines;
+      try
       {
-        string trimmed = line.Trim();
+          // Read outside the lock so we don't hold up the main thread during I/O
+          lines = File.ReadAllLines(_txtFilePath);
+      }
+      catch (IOException ex)
+      {
+          Debug.LogWarning($"[SimpleConfig] Failed to read config due to file lock, skipping reload: {ex.Message}");
+          return;
+      }
 
-        if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith("//"))
-          continue;
+      lock (_lockObj)
+      {
+        _settings.Clear();
+        _comments.Clear();
 
-        int equalsIndex = trimmed.IndexOf('=');
-        if (equalsIndex > 0)
+        foreach (string line in lines)
         {
-          string key = trimmed.Substring(0, equalsIndex).Trim();
-          string rawValue = trimmed.Substring(equalsIndex + 1);
+          string trimmed = line.Trim();
 
-          int hashIndex = rawValue.IndexOf('#');
-          int slashIndex = rawValue.IndexOf("//");
+          if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith("//"))
+            continue;
 
-          int commentIndex = -1;
-          if (hashIndex >= 0 && slashIndex >= 0) commentIndex = Math.Min(hashIndex, slashIndex);
-          else if (hashIndex >= 0) commentIndex = hashIndex;
-          else if (slashIndex >= 0) commentIndex = slashIndex;
-
-          if (commentIndex >= 0)
+          int equalsIndex = trimmed.IndexOf('=');
+          if (equalsIndex > 0)
           {
-            _settings[key] = rawValue.Substring(0, commentIndex).Trim();
-            _comments[key] = rawValue.Substring(commentIndex).Trim();
-          }
-          else
-          {
-            _settings[key] = rawValue.Trim();
+            string key = trimmed.Substring(0, equalsIndex).Trim();
+            string rawValue = trimmed.Substring(equalsIndex + 1);
+
+            int hashIndex = rawValue.IndexOf('#');
+            int slashIndex = rawValue.IndexOf("//");
+
+            int commentIndex = -1;
+            if (hashIndex >= 0 && slashIndex >= 0) commentIndex = Math.Min(hashIndex, slashIndex);
+            else if (hashIndex >= 0) commentIndex = hashIndex;
+            else if (slashIndex >= 0) commentIndex = slashIndex;
+
+            if (commentIndex >= 0)
+            {
+              _settings[key] = rawValue.Substring(0, commentIndex).Trim();
+              _comments[key] = rawValue.Substring(commentIndex).Trim();
+            }
+            else
+            {
+              _settings[key] = rawValue.Trim();
+            }
           }
         }
       }
@@ -282,107 +346,139 @@ namespace Calloatti.Config
       List<string> outputLines = new List<string>();
       HashSet<string> writtenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-      if (File.Exists(_txtFilePath))
+      // Disable watcher temporarily to prevent catching our own saves
+      if (_watcher != null) _watcher.EnableRaisingEvents = false;
+
+      lock (_lockObj)
       {
-        foreach (string line in File.ReadAllLines(_txtFilePath))
+        if (File.Exists(_txtFilePath))
         {
-          string trimmed = line.Trim();
-
-          if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith("//"))
+          foreach (string line in File.ReadAllLines(_txtFilePath))
           {
-            outputLines.Add(line);
-            continue;
-          }
+            string trimmed = line.Trim();
 
-          int equalsIndex = trimmed.IndexOf('=');
-          if (equalsIndex > 0)
-          {
-            string key = trimmed.Substring(0, equalsIndex).Trim();
-
-            if (_settings.TryGetValue(key, out string val))
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#") || trimmed.StartsWith("//"))
             {
-              string comment = _comments.TryGetValue(key, out string c) ? $" {c}" : "";
-              outputLines.Add($"{key}={val}{comment}");
-              writtenKeys.Add(key);
+              outputLines.Add(line);
+              continue;
+            }
+
+            int equalsIndex = trimmed.IndexOf('=');
+            if (equalsIndex > 0)
+            {
+              string key = trimmed.Substring(0, equalsIndex).Trim();
+
+              if (_settings.TryGetValue(key, out string val))
+              {
+                string comment = _comments.TryGetValue(key, out string c) ? $" {c}" : "";
+                outputLines.Add($"{key}={val}{comment}");
+                writtenKeys.Add(key);
+              }
+            }
+            else
+            {
+              outputLines.Add(line);
             }
           }
-          else
-          {
-            outputLines.Add(line);
-          }
         }
-      }
 
-      foreach (var kvp in _settings)
-      {
-        if (!writtenKeys.Contains(kvp.Key))
+        foreach (var kvp in _settings)
         {
-          string comment = _comments.TryGetValue(kvp.Key, out string c) ? $" {c}" : "";
-          outputLines.Add($"{kvp.Key}={kvp.Value}{comment}");
+          if (!writtenKeys.Contains(kvp.Key))
+          {
+            string comment = _comments.TryGetValue(kvp.Key, out string c) ? $" {c}" : "";
+            outputLines.Add($"{kvp.Key}={kvp.Value}{comment}");
+          }
         }
       }
 
       File.WriteAllLines(_txtFilePath, outputLines);
+      
+      if (_watcher != null) _watcher.EnableRaisingEvents = true;
     }
 
-    public bool HasKey(string key) => _settings.ContainsKey(key);
+    public bool HasKey(string key)
+    {
+        lock (_lockObj) { return _settings.ContainsKey(key); }
+    }
 
     public void DeleteKey(string key)
     {
-      _settings.Remove(key);
-      _comments.Remove(key);
+      lock (_lockObj)
+      {
+          _settings.Remove(key);
+          _comments.Remove(key);
+      }
     }
 
     public string GetString(string key)
     {
-      if (_settings.TryGetValue(key, out string val)) return val;
+      lock (_lockObj)
+      {
+          if (_settings.TryGetValue(key, out string val)) return val;
+      }
       Debug.LogError($"[SimpleConfig] ERROR: Missing string for key '{key}'.");
       return string.Empty;
     }
 
     public bool GetBool(string key)
     {
-      if (_settings.TryGetValue(key, out string val) && bool.TryParse(val, out bool result)) return result;
+      lock (_lockObj)
+      {
+          if (_settings.TryGetValue(key, out string val) && bool.TryParse(val, out bool result)) return result;
+      }
       Debug.LogError($"[SimpleConfig] ERROR: Missing or invalid bool for key '{key}'.");
       return false;
     }
 
     public int GetInt(string key)
     {
-      if (_settings.TryGetValue(key, out string val) && int.TryParse(val, out int result)) return result;
+      lock (_lockObj)
+      {
+          if (_settings.TryGetValue(key, out string val) && int.TryParse(val, out int result)) return result;
+      }
       Debug.LogError($"[SimpleConfig] ERROR: Missing or invalid int for key '{key}'.");
       return 0;
     }
 
     public float GetFloat(string key)
     {
-      if (_settings.TryGetValue(key, out string val) && float.TryParse(val.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out float result)) return result;
+      lock (_lockObj)
+      {
+          if (_settings.TryGetValue(key, out string val) && float.TryParse(val.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out float result)) return result;
+      }
       Debug.LogError($"[SimpleConfig] ERROR: Missing or invalid float for key '{key}'.");
       return 0f;
     }
 
     public T GetEnum<T>(string key) where T : struct, Enum
     {
-      if (_settings.TryGetValue(key, out string val) && Enum.TryParse<T>(val, true, out T result)) return result;
+      lock (_lockObj)
+      {
+          if (_settings.TryGetValue(key, out string val) && Enum.TryParse<T>(val, true, out T result)) return result;
+      }
       Debug.LogError($"[SimpleConfig] ERROR: Missing or invalid enum '{typeof(T).Name}' for key '{key}'.");
       return default;
     }
 
     public void Set(string key, object value)
     {
-      if (value is float f)
-        _settings[key] = f.ToString(CultureInfo.InvariantCulture);
-      else if (value is double d)
-        _settings[key] = d.ToString(CultureInfo.InvariantCulture);
-      else
-        _settings[key] = value.ToString();
+      lock (_lockObj)
+      {
+          if (value is float f)
+            _settings[key] = f.ToString(CultureInfo.InvariantCulture);
+          else if (value is double d)
+            _settings[key] = d.ToString(CultureInfo.InvariantCulture);
+          else
+            _settings[key] = value.ToString();
+      }
     }
 
     public void SetComment(string key, string comment)
     {
       if (string.IsNullOrWhiteSpace(comment))
       {
-        _comments.Remove(key);
+        lock (_lockObj) { _comments.Remove(key); }
         return;
       }
 
@@ -392,7 +488,7 @@ namespace Calloatti.Config
         comment = "# " + comment;
       }
 
-      _comments[key] = comment;
+      lock (_lockObj) { _comments[key] = comment; }
     }
   }
 }
