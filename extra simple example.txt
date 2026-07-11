@@ -12,7 +12,7 @@ if (ModStarter.Config.HasKey(blueprint.Name))
 else
 {
   ModStarter.Config.Set(blueprint.Name, defaultCap);
-  ModStarter.Config.SetComment(blueprint.Name, $"Default value: {defaultCap}");
+  ModStarter.Config.SetComment(blueprint.Name, $"Defaultvalue: {defaultCap}");
   fileModified = true;
 }
 

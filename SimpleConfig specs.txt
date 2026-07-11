@@ -42,3 +42,47 @@ These handle when a setting can be safely edited and provide player warnings.
 * AvailableIn (Array)   : Lists scenes where the setting is editable. Valid values: "MainMenu", "Game", "MapEditor". Defaults to ["MainMenu"] if omitted.
 * RequiresRestart (Bool): If true, UI displays a warning that a game restart is required.
 * RequiresReload (Bool) : If true, UI displays a warning that the player must reload their save.
+
+
+
+1. A Dynamic Boolean (Toggle)
+For a simple toggle, you map the ControlType , Label , Tooltip , and DefaultValue. If it requires a reload, add the RequiresReload flag.  
+
+Dam.Folktails=false # Label:Folktails Dam | Tooltip:Enables the custom dam variant. | ControlType:Toggle | RequiresReload:true | DefaultValue:false2. A Dynamic Integer (Slider)
+
+For a slider, you include the conditional UI properties: MinValue , MaxValue , and Step.  
+
+LargeIndustrialPile.IronTeeth=500 # Label:IT Industrial Pile | Tooltip:Sets the maximum storage capacity. | ControlType:Slider | MinValue:100 | MaxValue:1000 | Step:50 | DefaultValue:1803. A Dynamic Enum/String (Dropdown)
+
+For a dropdown, you provide the Options array. You can represent the array with brackets.  
+
+MapDisplayState=Single # Label:Map Display Mode | ControlType:Dropdown | Options:[Hidden, Single, Global] | DefaultValue:Hidden
+
+Use this for new format:
+
+Dam.Folktails=false # Inline:true | Label:Folktails Dam | ControlType:Toggle | DefaultValue:false
+
+AdvancedStorageMultiplier=2.5 # Inline:true | Type:float | DefaultValue:1.0 | Label:Global Storage Multiplier | Tooltip:Multiplies the base item capacity of all standard warehouses. | ControlType:Slider | MinValue:1.0 | MaxValue:5.0 | Step:0.5 | RequiresRestart:false | RequiresReload:true | Options:[Low,Medium,High] | AvailableIn:[MainMenu,Game] 
+
+
+MyModStarter.Config.SetInlineComment("Dam.Folktails", requiresReload: true);
+// Results in: # Inline:true | RequiresReload:true
+
+MyModStarter.Config.SetInlineComment(
+    key: "LargeIndustrialPile.IronTeeth",
+    type: "int",
+    defaultValue: 180,
+    label: "IT Industrial Pile",
+    controlType: "Slider",
+    minValue: 50f,
+    maxValue: 1000f,
+    step: 10f
+);
+// Results in: # Inline:true | Type:int | DefaultValue:180 | Label:IT Industrial Pile | ControlType:Slider | MinValue:50 | MaxValue:1000 | Step:10
+
+MyModStarter.Config.SetInlineComment(
+    key: "MapDisplayState",
+    controlType: "Dropdown",
+    options: new List<string> { "Hidden", "Single", "Global" },
+    availableIn: new List<string> { "MainMenu", "Game" }
+);
