@@ -9,6 +9,38 @@ This file acts as the Single Source of Truth for both the backend data managemen
 
 ## SETTING OBJECT PROPERTIES
 
+DEFINITIVE PROPERTY LIST FOR CONFIG SCHEMA
+
+Backend Data Properties:
+- Key (String)
+- Type (String) - Valid values: "bool", "int", "float", "string"
+- DefaultValue (Any/Object)
+
+UI Auto-Commenting Properties:
+- Label (String)
+- Tooltip (String)
+
+Frontend UI Properties:
+- ControlType (String) - Valid values: "Toggle", "Slider", "TextField", "Dropdown", "Color"
+
+Conditional UI Properties (Sliders & Dropdowns):
+- MinValue (Number/Float, Optional/Nullable)
+- MaxValue (Number/Float, Optional/Nullable)
+- Step (Number/Float, Optional/Nullable)
+- Options (List of Strings, Optional)
+
+Lifecycle & Scene Properties:
+- AvailableInMainMenu (Boolean, Default: true)
+- AvailableInGame (Boolean, Default: true)
+- AvailableInMapEditor (Boolean, Default: true)
+- RequiresRestart (Boolean)
+- RequiresReload (Boolean)
+
+Internal State Tracking (Retained from original script):
+- IsOrphan (Boolean)
+- IsInline (Boolean)
+- RawComment (String)
+
 
 ### 1. Backend Data Properties (Required)
 These tell the C# backend how to parse the text file and what fallback values to use.
@@ -29,8 +61,8 @@ These tell the dynamic UI builder which visual elements to generate.
 These are required only if you are using specific ControlTypes.
 
 If ControlType is "Slider" (Pairs with Type "int" or "float"):
-* MinValue (Number)     : The lowest allowed value on the slider.
-* MaxValue (Number)     : The highest allowed value on the slider.
+* MinValue (Number)     : The lowest allowed value on the slider. 
+* MaxValue (Number)     : The highest allowed value on the slider. 
 * Step (Number)         : The increment the slider moves by (e.g., 0.1 for floats, 1 for ints).
 
 If ControlType is "Dropdown" (Pairs with Type "enum" or "string"):
@@ -39,7 +71,9 @@ If ControlType is "Dropdown" (Pairs with Type "enum" or "string"):
 
 ### 5. Lifecycle & Scene Properties (Optional)
 These handle when a setting can be safely edited and provide player warnings.
-* AvailableIn (Array)   : Lists scenes where the setting is editable. Valid values: "MainMenu", "Game", "MapEditor". Defaults to ["MainMenu"] if omitted.
+* AvailableInMainMenu : bool default true
+* AvailableInGame : bool default true
+* AvailableInMapEditor: bool default true
 * RequiresRestart (Bool): If true, UI displays a warning that a game restart is required.
 * RequiresReload (Bool) : If true, UI displays a warning that the player must reload their save.
 
@@ -86,3 +120,18 @@ MyModStarter.Config.SetInlineComment(
     options: new List<string> { "Hidden", "Single", "Global" },
     availableIn: new List<string> { "MainMenu", "Game" }
 );
+
+
+
+Key: The unique identifier for the setting (e.g., "UseBagsForDirt", "Dam.Folktails", "GridNormalVerticalOffset").  
+Type: The data type of the setting. Valid values found: "bool", "float", "string", "int", "enum".  
+DefaultValue: The initial value for the setting.  
+Label: The display name shown in the UI.  
+Tooltip: The descriptive text shown when hovering over the setting.  
+ControlType: The UI element used to display the setting. Valid values found: "Toggle", "Slider", "TextField", "Dropdown".  
+MinValue: The minimum allowed value (used mostly for Sliders).  
+MaxValue: The maximum allowed value.  
+Step: The increment amount for sliders.  
+Options: An array of strings used to populate a Dropdown menu.  
+RequiresRestart: A boolean indicating if changing the setting requires a full game restart.  
+RequiresReload: A boolean indicating if changing the setting requires reloading the current save.  
