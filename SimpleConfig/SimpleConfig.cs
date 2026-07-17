@@ -706,4 +706,13 @@ namespace Calloatti.Config
         if (minValue.HasValue) entry.MinValue = minValue;
         if (maxValue.HasValue) entry.MaxValue = maxValue;
         if (step.HasValue) entry.Step = step;
-        if (requiresRestart.HasValue) entry.RequiresRestart = requiresR
+        if (requiresRestart.HasValue) entry.RequiresRestart = requiresRestart.Value;
+        if (requiresReload.HasValue) entry.RequiresReload = requiresReload.Value;
+        if (options != null) entry.Options = options;
+        if (availableInMainMenu.HasValue) entry.AvailableInMainMenu = availableInMainMenu.Value;
+        if (availableInGame.HasValue) entry.AvailableInGame = availableInGame.Value;
+        if (availableInMapEditor.HasValue) entry.AvailableInMapEditor = availableInMapEditor.Value;
+      }
+    }
+  }
+}
